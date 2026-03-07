@@ -137,19 +137,13 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-doc_events = {
-    "Sales Order": {
-        "validate": "purva.override.credit_limit.validate_group_credit_limit"
-    },
-    "Sales Invoice": {
-        "validate": "purva.override.credit_limit.validate_group_credit_limit"
-    }
-	# "*": {
-	# 	"on_update": "method",
-	# 	"on_cancel": "method",
-	# 	"on_trash": "method"
-	# }
-}
+# doc_events = {
+# 	"*": {
+# 		"on_update": "method",
+# 		"on_cancel": "method",
+# 		"on_trash": "method"
+# 	}
+# }
 
 # Scheduled Tasks
 # ---------------
@@ -253,3 +247,10 @@ doc_events = {
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
+
+import erpnext.selling.doctype.customer.customer as customer_module
+from purva.override.customer import check_credit_limit
+customer_module.check_credit_limit = check_credit_limit
+
+# def apply_monkey_patches():
+    
