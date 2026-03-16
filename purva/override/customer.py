@@ -40,9 +40,8 @@ def check_credit_limit(customer, company, ignore_outstanding_sales_order=False, 
             get_customer_outstanding(customer, comp, ignore_outstanding_sales_order)
         )
 
-    # Add current transaction value
-    if extra_amount > 0:
-        customer_outstanding += flt(extra_amount)
+    # Always include current transaction value
+    customer_outstanding = flt(customer_outstanding) + flt(extra_amount)
 
     # Credit limit validation
     if credit_limit > 0 and flt(customer_outstanding) > credit_limit:
