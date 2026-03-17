@@ -11,9 +11,16 @@ from erpnext.selling.doctype.customer.customer import (
 
 
 def check_credit_limit(customer, company, ignore_outstanding_sales_order=False, extra_amount=0):
-
+    
     parent_company = frappe.db.get_value("Company", company, "parent_company")
     group_company = parent_company or company
+    customer_group = frappe.db.get_value("Customer", customer, "customer_group")
+    customers = frappe.get_all(
+        "Customer",
+        filters={"customer_group": customer_group},
+        pluck="name"
+    )
+
     credit_limit = get_credit_limit(customer, group_company)
 
     if not credit_limit:
@@ -25,63 +32,39 @@ def check_credit_limit(customer, company, ignore_outstanding_sales_order=False, 
             filters={"parent_company": group_company},
             pluck="name"
         )
-
-        # Include parent company itself
         companies.append(group_company)
-
     else:
         companies = [company]
 
-    # Calculate outstanding across companies
     customer_outstanding = 0
 
-    for comp in companies:
-        customer_outstanding += flt(
-            get_customer_outstanding(customer, comp, ignore_outstanding_sales_order)
-        )
+    for cust in customers:
+        for comp in companies:
+            customer_outstanding += flt(
+                get_customer_outstanding(
+                    cust,
+                    comp,
+                    ignore_outstanding_sales_order
+                )
+            )
 
-    # Always include current transaction value
-    customer_outstanding = flt(customer_outstanding) + flt(extra_amount)
+    # Add current transaction value
+    if extra_amount > 0:
+        customer_outstanding += flt(extra_amount)
 
-    # Credit limit validation
     if credit_limit > 0 and flt(customer_outstanding) > credit_limit:
 
-        message = _("Credit limit has been crossed for customer {0} ({1}/{2})").format(
-            customer, customer_outstanding, credit_limit
+        message = _("Credit limit has been crossed for Customer Group {0} ({1}/{2})").format(
+            customer_group, customer_outstanding, credit_limit
         )
 
         message += "<br><br>"
 
-        credit_controller_role = frappe.db.get_single_value(
-            "Accounts Settings", "credit_controller"
+        message += _(
+            "Please contact your Accounts Team to extend the credit limit for Customer Group {0}."
+        ).format(customer_group)
+
+        frappe.throw(
+            message,
+            title=_("Credit Limit Crossed")
         )
-
-        if not credit_controller_role or credit_controller_role not in frappe.get_roles():
-
-            credit_controller_users = get_users_with_role(
-                credit_controller_role or "Sales Master Manager"
-            )
-
-            credit_controller_users_formatted = [
-                get_formatted_email(user).replace("<", "(").replace(">", ")")
-                for user in credit_controller_users
-            ]
-
-            if not credit_controller_users_formatted:
-                frappe.throw(
-                    _("Please contact your administrator to extend the credit limits for {0}.").format(customer)
-                )
-
-            user_list = "<br><br><ul><li>{}</li></ul>".format(
-                "<li>".join(credit_controller_users_formatted)
-            )
-
-            message += _(
-                "Please contact any of the following users to extend the credit limits for {0}: {1}"
-            ).format(customer, user_list)
-
-            frappe.msgprint(
-                message,
-                title=_("Credit Limit Crossed"),
-                raise_exception=1,
-            )
