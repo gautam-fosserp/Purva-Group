@@ -68,3 +68,4 @@ def check_credit_limit(customer, company, ignore_outstanding_sales_order=False, 
             message,
             title=_("Credit Limit Crossed")
         )
+        
