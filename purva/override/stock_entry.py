@@ -28,6 +28,17 @@ class CustomStockEntry(StockEntry):
 
         return outgoing_items_cost
 
+    def set_basic_rate(self, reset_outgoing_rate=True, raise_error_if_no_rate=True):
+        """Ensure basic_amount is always calculated for incoming items even when
+        set_basic_rate_manually is checked. ERPNext skips the entire loop body
+        (including basic_amount) when set_basic_rate_manually=True, leaving
+        basic_amount=0 on finished/incoming items in Repack entries."""
+        super().set_basic_rate(reset_outgoing_rate, raise_error_if_no_rate)
+
+        for d in self.get("items"):
+            if d.set_basic_rate_manually and not d.s_warehouse:
+                d.basic_amount = flt(flt(d.transfer_qty) * flt(d.basic_rate), d.precision("basic_amount"))
+
     def update_valuation_rate(self):
         """Ignore additional costs for Material Transfer items with custom_updated_rate."""
         super().update_valuation_rate()
