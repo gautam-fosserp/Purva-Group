@@ -39,15 +39,3 @@ class CustomStockEntry(StockEntry):
             if d.set_basic_rate_manually and not d.s_warehouse:
                 d.basic_amount = flt(flt(d.transfer_qty) * flt(d.basic_rate), d.precision("basic_amount"))
 
-    def update_valuation_rate(self):
-        """Ignore additional costs for Material Transfer items with custom_updated_rate."""
-        super().update_valuation_rate()
-
-        if not self.is_material_transfer_type():
-            return
-
-        for d in self.get("items"):
-            if d.get("custom_updated_rate"):
-                d.additional_cost = 0.0
-                d.amount = flt(d.basic_amount, d.precision("amount"))
-                d.valuation_rate = d.basic_rate
