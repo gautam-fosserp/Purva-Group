@@ -5,7 +5,7 @@ import frappe
 
 
 @frappe.whitelist()
-def get_pdf_pages_as_images(file_url):
+def get_pdf_pages_as_images(file_url: str) -> list:
 	if not file_url:
 		return []
 
