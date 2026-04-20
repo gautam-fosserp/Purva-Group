@@ -1,6 +1,7 @@
-import frappe
-import fitz
 import base64
+
+import fitz
+import frappe
 
 
 @frappe.whitelist()
