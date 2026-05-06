@@ -45,15 +45,15 @@ def _get_batch_qty_in_warehouse(item_code: str, warehouse: str, batch_no: str) -
 
 			UNION ALL
 
-			-- bundle-based: batch_no lives in Serial and Batch Entry
-			SELECT sle.actual_qty
+			-- bundle-based: use sbe.qty (per-batch qty) not sle.actual_qty (total for all batches)
+			SELECT sbe.qty AS actual_qty
 			FROM `tabStock Ledger Entry` sle
 			JOIN `tabSerial and Batch Entry` sbe ON sbe.parent = sle.serial_and_batch_bundle
 			WHERE sle.item_code = %s
 			  AND sle.warehouse = %s
 			  AND sle.is_cancelled = 0
 			  AND sbe.batch_no = %s
-			  AND sbe.item_code = %s
+			  AND (sbe.item_code = %s OR sbe.item_code IS NULL OR sbe.item_code = '')
 
 		) combined
 		""",
@@ -73,31 +73,14 @@ def create_inventory_adjustment(invoice_name: str) -> dict:
 		if not frappe.db.get_value("Item", row.item_code, "is_stock_item"):
 			continue
 
-		batch_qty = 0
-
 		if row.use_serial_batch_fields:
-			if row.batch_no:
-				batch_qty = _get_batch_qty_in_warehouse(row.item_code, row.warehouse, row.batch_no)
-		else:
-			if row.serial_and_batch_bundle:
-				bundle_batches = frappe.get_all(
-					"Serial and Batch Entry",
-					filters={"parent": row.serial_and_batch_bundle},
-					fields=["batch_no"],
-				)
-				for batch in bundle_batches:
-					if not batch.batch_no:
-						continue
-					batch_qty += _get_batch_qty_in_warehouse(row.item_code, row.warehouse, batch.batch_no)
-
-		invoice_qty = row.qty or 0
-		shortage = invoice_qty - batch_qty
-
-		if shortage <= 0:
-			continue
-
-		items.append(
-			{
+			if not row.batch_no:
+				continue
+			batch_qty = _get_batch_qty_in_warehouse(row.item_code, row.warehouse, row.batch_no)
+			shortage = (row.qty or 0) - batch_qty
+			if shortage <= 0:
+				continue
+			items.append({
 				"item_code": row.item_code,
 				"item_name": row.item_name,
 				"description": row.description,
@@ -105,10 +88,36 @@ def create_inventory_adjustment(invoice_name: str) -> dict:
 				"uom": row.uom,
 				"warehouse": row.warehouse,
 				"batch_no": row.batch_no,
-				"serial_and_batch_bundle": row.serial_and_batch_bundle,
 				"custom_batch_make": row.custom_batch_make,
-			}
-		)
+			})
+		else:
+			if not row.serial_and_batch_bundle:
+				continue
+			bundle_batches = frappe.get_all(
+				"Serial and Batch Entry",
+				filters={"parent": row.serial_and_batch_bundle},
+				fields=["batch_no", "qty", "item_code"],
+			)
+			for batch in bundle_batches:
+				if not batch.batch_no:
+					continue
+				ic = batch.item_code or row.item_code
+				available_qty = _get_batch_qty_in_warehouse(ic, row.warehouse, batch.batch_no)
+				# outward bundle entries store qty as negative; abs() gives the invoiced qty
+				batch_invoice_qty = abs(batch.qty or 0)
+				shortage = batch_invoice_qty - available_qty
+				if shortage <= 0:
+					continue
+				items.append({
+					"item_code": ic,
+					"item_name": row.item_name,
+					"description": row.description,
+					"qty": shortage,
+					"uom": row.uom,
+					"warehouse": row.warehouse,
+					"batch_no": batch.batch_no,
+					"custom_batch_make": row.custom_batch_make,
+				})
 
 	return {
 		"company": source.company,

@@ -106,26 +106,12 @@ frappe.ui.form.on("Sales Invoice", {
 
     validate(frm) {
 
-        (frm.doc.items || []).forEach(row => {
-
-            let qty = Number(row.qty || 0);
-            let available = Number(row.actual_batch_qty || 0);
-
+        for (let row of (frm.doc.items || [])) {
             if (!row.warehouse) {
                 frappe.throw(`Row ${row.idx}: Warehouse missing for stock validation`);
+                return;
             }
-
-            let expected_shortage = qty - available;
-
-            if (row.adjustment_done) {
-                if (expected_shortage !== Number(row.adjusted_qty || 0)) {
-                    frappe.throw(
-                        `Row ${row.idx}: Qty changed after adjustment. Please recreate Inventory Adjustment.`
-                    );
-                }
-            }
-
-        });
+        }
 
     }
 
@@ -253,6 +239,7 @@ frappe.ui.form.on('Sales Invoice', {
                                 child.uom = row.uom || "Nos";
                                 child.t_warehouse = row.warehouse || "";
                                 child.batch_no = row.batch_no || "";
+                                child.serial_and_batch_bundle = "";
                                 child.custom_batch_make = row.custom_batch_make || "";
                                 child.custom_batch_length = row.custom_batch_length || "";
                             }
