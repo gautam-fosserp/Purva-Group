@@ -106,35 +106,27 @@ frappe.ui.form.on("Sales Invoice", {
 
     validate(frm) {
 
-        frappe.validated = false;
+        (frm.doc.items || []).forEach(row => {
 
-        get_warehouse_from_cc(frm).then(warehouse => {
-            apply_all(frm);
-            apply_warehouse(frm, warehouse);
+            let qty = Number(row.qty || 0);
+            let available = Number(row.actual_batch_qty || 0);
 
-            (frm.doc.items || []).forEach(row => {
+            if (!row.warehouse) {
+                frappe.throw(`Row ${row.idx}: Warehouse missing for stock validation`);
+            }
 
-                let qty = Number(row.qty || 0);
-                let available = Number(row.actual_batch_qty || 0);
+            let expected_shortage = qty - available;
 
-                if (!row.warehouse) {
-                    frappe.throw(`Row ${row.idx}: Warehouse missing for stock validation`);
+            if (row.adjustment_done) {
+                if (expected_shortage !== Number(row.adjusted_qty || 0)) {
+                    frappe.throw(
+                        `Row ${row.idx}: Qty changed after adjustment. Please recreate Inventory Adjustment.`
+                    );
                 }
+            }
 
-                let expected_shortage = qty - available;
-
-                if (row.adjustment_done) {
-                    if (expected_shortage !== Number(row.adjusted_qty || 0)) {
-                        frappe.throw(
-                            `Row ${row.idx}: Qty changed after adjustment. Please recreate Inventory Adjustment.`
-                        );
-                    }
-                }
-
-            });
-
-            frappe.validated = true;
         });
+
     }
 
 });
