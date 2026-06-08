@@ -43,7 +43,7 @@ app_license = "mit"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {"Sales Invoice": "public/js/sales_invoice.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -133,9 +133,7 @@ app_license = "mit"
 # 	"ToDo": "custom_app.overrides.CustomToDo"
 # }
 
-override_doctype_class = {
-    "Stock Entry": "purva.override.stock_entry.CustomStockEntry"
-}
+override_doctype_class = {"Stock Entry": "purva.override.stock_entry.CustomStockEntry"}
 
 # Document Events
 # ---------------
@@ -253,8 +251,9 @@ override_doctype_class = {
 
 
 import erpnext.selling.doctype.customer.customer as customer_module
+
 from purva.override.customer import check_credit_limit
+
 customer_module.check_credit_limit = check_credit_limit
 
 # def apply_monkey_patches():
-    
